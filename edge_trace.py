@@ -1,82 +1,53 @@
-n30wm2-codex/edgetrace-tool-für-kantenerkennung
-"""Command-line interface for EdgeTrace.
+"""EdgeTrace\xa0– Hauptskript.
+Startet nacheinander elf Kantenerkennungs-Modelle auf einem Bilder-Ordner
+und speichert pro Modell Schwarz-Wei\xdf-PNG-Skizzen.
+import shutil
+import sys
+from pathlib import Path
 
-This script provides a Tkinter folder selection dialog and sequentially runs
-all edge detection models defined in ``edge_models.py`` on the chosen images.
-Progress is displayed using ``tqdm``.
-"""
-
-from __future__ import annotations
-
-import logging
-import os
-from tkinter import Tk, filedialog
-from typing import List
-
-import torch
-from tqdm import tqdm
-
-from edge_models import (
-    BDCN,
-    DexiNed,
-    DiffusionEdge,
-    EDTER,
-    HED,
-    MuGE,
-    PiDiNet,
-    RCF,
-    RankED,
-    SAUGE,
-    UAED,
-)
+import tkinter as tk
+from tkinter import filedialog, messagebox
+from edge_models import MODELS
 
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(message)s",
-)
+def select_directory() -> Path | None:
+    """Grafische Ordnerauswahl."""
+    root = tk.Tk()
+    path_str = filedialog.askdirectory(title="Bilder-Ordner ausw\xe4hlen")
+    return Path(path_str) if path_str else None
 
+def sanity_checks():
+    """Checke wichtige Laufzeitbedingungen."""
+    print("GPU verf\xfcgbar:" if torch.cuda.is_available() else "Keine GPU gefunden – CPU-Modus.")
+    """CLI-Einstiegspunkt."""
+    input_dir = select_directory()
+    if input_dir is None:
+        messagebox.showinfo("EdgeTrace", "Abgebrochen – kein Ordner ausgew\xe4hlt.")
+        sys.exit(0)
 
-def choose_folder() -> str | None:
-    """Open a folder selection dialog and return the chosen path."""
-    root = Tk()
-    root.withdraw()
-    folder = filedialog.askdirectory(title="Bilder-Ordner wählen")
-    root.destroy()
-    return folder if folder else None
+    if not any(input_dir.glob("*.png")) and not any(input_dir.glob("*.jpg")):
+        messagebox.showerror("EdgeTrace", "Keine PNG/JPG-Bilder im Ordner gefunden.")
+        sys.exit(1)
 
+    sanity_checks()
 
-def get_device() -> str:
-    """Return ``cuda`` if available else ``cpu`` and log the choice."""
-    if torch.cuda.is_available():
-        logging.info("CUDA available - using GPU")
-        return "cuda"
-    logging.warning("CUDA not available - falling back to CPU")
-    return "cpu"
+    output_root = Path("output")
+    output_root.mkdir(exist_ok=True)
 
-
-def run_pipeline(input_dir: str, device: str) -> None:
-    """Run all edge models sequentially on ``input_dir``."""
-    models = [
-        HED("HED"),
-        RCF("RCF"),
-        BDCN("BDCN"),
-        DexiNed("DexiNed"),
-        PiDiNet("PiDiNet"),
-        EDTER("EDTER"),
-        UAED("UAED"),
-        DiffusionEdge("DiffusionEdge"),
-        RankED("RankED"),
-        MuGE("MuGE"),
-        SAUGE("SAUGE"),
+    models_sequence = [
+        "HED", "RCF", "BDCN", "DexiNed", "PiDiNet", "EDTER",
+        "UAED", "DiffusionEdge", "RankED", "MuGE", "SAUGE",
     ]
 
-    for model in tqdm(models, desc="Modelle", unit="model"):
-        out_dir = os.path.join("output", model.name)
-        os.makedirs(out_dir, exist_ok=True)
-        model.process_folder(input_dir, out_dir, device)
+    for model_name in tqdm(models_sequence, desc="Modelle", unit="Modell"):
+        wrapper = MODELS[model_name]
+        model_out = output_root / model_name
+        # Sauber neu anlegen
+        if model_out.exists():
+            shutil.rmtree(model_out)
+        wrapper.run(input_dir, model_out)
 
-
+    messagebox.showinfo("EdgeTrace", "Alle Modelle fertig!")
 def main() -> None:
     """Entry point for the script."""
     input_dir = choose_folder()

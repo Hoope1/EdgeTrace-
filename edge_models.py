@@ -1,97 +1,150 @@
-"""Wrappers for edge detection models.
-
-This module contains placeholder wrappers for multiple edge detection models.
-Each model exposes a `process_folder` method that takes an input directory and an
-output directory. Images are processed sequentially with basic edge detection
-for demonstration purposes.
+"""Gemeinsame Wrapper\xa0für alle elf Modelle.
+Jeder Wrapper implementiert die Methode `run(input_dir: Path, output_dir: Path)`.
+Falls ein Modell als Python-Paket verf\xfcgbar ist (PiDiNet), wird direkt importiert.
+Bei reinen Repo-Demos (z.\u202fB. HED) wird ein Subprozess gegen das jeweilige Skript gestartet.
 """
+from __future__ import annotations
+
+import subprocess
+import sys
+from pathlib import Path
+from typing import Callable, Dict, List
 
 import logging
-import os
-from dataclasses import dataclass
-from typing import List
 
-import cv2
-import numpy as np
-
-
-VALID_EXTENSIONS = {"jpg", "jpeg", "png", "bmp", "tiff"}
-
-
-def is_image_file(filename: str) -> bool:
-    """Return True if the filename has a valid image extension."""
-    return filename.split(".")[-1].lower() in VALID_EXTENSIONS
+LOGGER = logging.getLogger(__name__)
+_HANDLER = logging.StreamHandler(sys.stdout)
+logging.basicConfig(
+    level=logging.INFO,
+    format="[%(asctime)s] %(levelname)s \u2013 %(message)s",
+    handlers=[_HANDLER],
+)
 
 
-@dataclass
-class EdgeModel:
-    """Base class for edge detection models."""
+class ModelWrapper:
+    """Basisklasse f\xfcr alle Modelle."""
 
-    name: str
+    def __init__(self, name: str, runner: Callable[[Path, Path], None]):
+        self.name = name
+        self._runner = runner
 
-    def process_image(self, image_path: str, output_path: str, device: str = "cpu") -> None:
-        """Process a single image and save the edge map."""
-        image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
-        if image is None:
-            raise ValueError(f"Unable to read image: {image_path}")
-        edges = cv2.Canny(image, 100, 200)
-        cv2.imwrite(output_path, edges)
-
-    def process_folder(self, input_dir: str, output_dir: str, device: str = "cpu") -> None:
-        """Process all images in ``input_dir`` and save them under ``output_dir``."""
-        os.makedirs(output_dir, exist_ok=True)
-        files: List[str] = [f for f in os.listdir(input_dir) if is_image_file(f)]
-        if not files:
-            logging.warning("%s: No images found in %s", self.name, input_dir)
-            return
-        for filename in files:
-            src = os.path.join(input_dir, filename)
-            dst = os.path.join(output_dir, os.path.splitext(filename)[0] + ".png")
-            try:
-                self.process_image(src, dst, device)
-            except Exception as exc:  # noqa: BLE001
-                logging.error("%s: failed to process %s (%s)", self.name, filename, exc)
+    def run(self, input_dir: Path, output_dir: Path) -> None:
+        output_dir.mkdir(parents=True, exist_ok=True)
+        LOGGER.info("\u21d2 Starte %s", self.name)
+        try:
+            self._runner(input_dir, output_dir)
+            LOGGER.info("\u2713 %s abgeschlossen", self.name)
+        except Exception as exc:  # pylint: disable=broad-except
+            LOGGER.error("\u2717 %s fehlgeschlagen: %s", self.name, exc, exc_info=True)
 
 
-class HED(EdgeModel):
-    name = "HED"
+# ---------------------------------------------------------
+# Hilfsfunktionen pro Modell
+# ---------------------------------------------------------
 
 
-class RCF(EdgeModel):
-    name = "RCF"
+def _subproc(cmd: List[str]) -> None:
+    """Ausf\xfchren eines Befehls mit Fehlerweiterleitung."""
+    subprocess.run(cmd, check=True)
 
 
-class BDCN(EdgeModel):
-    name = "BDCN"
+def _hed(input_dir: Path, output_dir: Path) -> None:
+    _subproc([
+        sys.executable,
+        "models/HED/examples/hed_infer.py",
+        "--input", str(input_dir),
+        "--output", str(output_dir),
+    ])
 
 
-class DexiNed(EdgeModel):
-    name = "DexiNed"
+def _rcf(input_dir: Path, output_dir: Path) -> None:
+    _subproc([
+        sys.executable,
+        "models/RCF/demo.py",
+        str(input_dir),
+        str(output_dir),
+    ])
 
 
-class PiDiNet(EdgeModel):
-    name = "PiDiNet"
+def _bdcn(input_dir: Path, output_dir: Path) -> None:
+    _subproc([
+        sys.executable,
+        "models/BDCN/demo.py",
+        "--input_dir", str(input_dir),
+        "--output_dir", str(output_dir),
+    ])
 
 
-class EDTER(EdgeModel):
-    name = "EDTER"
+def _dexined(input_dir: Path, output_dir: Path) -> None:
+    _subproc([
+        sys.executable,
+        "models/DexiNed/main.py",
+        "--input_dir", str(input_dir),
+        "--output_dir", str(output_dir),
+    ])
 
 
-class UAED(EdgeModel):
-    name = "UAED"
+def _pidinet(input_dir: Path, output_dir: Path) -> None:
+    from pidinet import PiDiNet  # type: ignore
+
+    PiDiNet.process_folder(str(input_dir), str(output_dir))
 
 
-class DiffusionEdge(EdgeModel):
-    name = "DiffusionEdge"
+def _edter(input_dir: Path, output_dir: Path) -> None:
+    _subproc([
+        sys.executable,
+        "models/EDTER/demo.py",
+        "--input", str(input_dir),
+        "--output", str(output_dir),
+    ])
 
 
-class RankED(EdgeModel):
-    name = "RankED"
+def _uaed(input_dir: Path, output_dir: Path) -> None:
+    _subproc([
+        sys.executable,
+        "models/UAED_MuGE/demo.py",
+        "--source", str(input_dir),
+        "--dest", str(output_dir),
+    ])
 
 
-class MuGE(EdgeModel):
-    name = "MuGE"
+def _diffusion_edge(input_dir: Path, output_dir: Path) -> None:
+    _subproc([
+        sys.executable,
+        "models/DiffusionEdge/demo.py",
+        "--input_dir", str(input_dir),
+        "--output_dir", str(output_dir),
+    ])
 
 
-class SAUGE(EdgeModel):
-    name = "SAUGE"
+def _ranked(input_dir: Path, output_dir: Path) -> None:
+    _subproc([
+        sys.executable,
+        "models/RankED/inference.py",
+        "--input", str(input_dir),
+        "--output", str(output_dir),
+    ])
+
+
+def _sauge(input_dir: Path, output_dir: Path) -> None:
+    _subproc([
+        sys.executable,
+        "models/SAUGE/demo.py",
+        "--src", str(input_dir),
+        "--dst", str(output_dir),
+    ])
+
+
+MODELS: Dict[str, ModelWrapper] = {
+    "HED": ModelWrapper("HED", _hed),
+    "RCF": ModelWrapper("RCF", _rcf),
+    "BDCN": ModelWrapper("BDCN", _bdcn),
+    "DexiNed": ModelWrapper("DexiNed", _dexined),
+    "PiDiNet": ModelWrapper("PiDiNet", _pidinet),
+    "EDTER": ModelWrapper("EDTER", _edter),
+    "UAED": ModelWrapper("UAED", _uaed),
+    "DiffusionEdge": ModelWrapper("DiffusionEdge", _diffusion_edge),
+    "RankED": ModelWrapper("RankED", _ranked),
+    "MuGE": ModelWrapper("MuGE", _uaed),  # MuGE-Skripte liegen im UAED-Repo
+    "SAUGE": ModelWrapper("SAUGE", _sauge),
+}

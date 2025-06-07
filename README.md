@@ -1,0 +1,2 @@
+# EdgeTrace-
+Edge Detection 

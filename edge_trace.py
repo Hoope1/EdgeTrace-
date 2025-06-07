@@ -1,66 +1,83 @@
-"""EdgeTrace – Hauptskript.
-Startet nacheinander elf Kantenerkennungs‑Modelle auf einem Bilder‑Ordner
-und speichert pro Modell Schwarz‑Weiß‑PNG‑Skizzen.
+"""EdgeTrace – GUI‑/CLI‑Hauptskript.
+
+Funktionen:
+* Tkinter‑Dialog für Quellordner
+* CUDA‑Erkennung mit Hinweis
+* Verarbeitung der 11 Modelle via Wrapper
+* Fortschritts‑TQDM (Modelle + optional pro Bild)
 """
 from __future__ import annotations
 
 import shutil
 import sys
 from pathlib import Path
+from typing import List
 
 import tkinter as tk
 from tkinter import filedialog, messagebox
 
 import torch
+from rich.console import Console
 from tqdm import tqdm
 
 from edge_models import MODELS
 
+console = Console()
 
-def select_directory() -> Path | None:
-    """Grafische Ordnerauswahl."""
+
+# ---------------------------------------------------------------------- #
+# Hilfsroutinen
+# ---------------------------------------------------------------------- #
+
+def _select_directory() -> Path | None:
     root = tk.Tk()
     root.withdraw()
-    path_str = filedialog.askdirectory(title="Bilder-Ordner auswählen")
-    return Path(path_str) if path_str else None
+    path = filedialog.askdirectory(title="Bilder‑Ordner auswählen")
+    return Path(path) if path else None
 
 
-def sanity_checks():
-    """Checke wichtige Laufzeitbedingungen."""
-    print("GPU verfügbar:" if torch.cuda.is_available() else "Keine GPU gefunden – CPU-Modus.")
+def _valid_images(directory: Path) -> List[Path]:
+    return sorted([*directory.glob("*.png"), *directory.glob("*.jpg"), *directory.glob("*.jpeg")])
 
 
-def main() -> None:
-    """CLI-Einstiegspunkt."""
-    input_dir = select_directory()
-    if input_dir is None:
-        messagebox.showinfo("EdgeTrace", "Abgebrochen – kein Ordner ausgewählt.")
+# ---------------------------------------------------------------------- #
+# Hauptlogik
+# ---------------------------------------------------------------------- #
+
+def main() -> None:  # noqa: C901 (keep it simple)
+    source = _select_directory()
+    if source is None:
+        console.print("[yellow]Abgebrochen – kein Ordner ausgewählt.")
         sys.exit(0)
 
-    if not any(input_dir.glob("*.png")) and not any(input_dir.glob("*.jpg")):
-        messagebox.showerror("EdgeTrace", "Keine PNG/JPG-Bilder im Ordner gefunden.")
+    images = _valid_images(source)
+    if not images:
+        messagebox.showerror("EdgeTrace", "Keine PNG/JPG‑Bilder im Ordner gefunden.")
         sys.exit(1)
 
-    sanity_checks()
+    cuda = torch.cuda.is_available()
+    console.print(f"GPU: {'[green]✅' if cuda else '[red]❌'}  (CUDA {'aktiv' if cuda else 'nicht gefunden'})")
 
     output_root = Path("output")
     output_root.mkdir(exist_ok=True)
 
-    models_sequence = [
+    sequence = [
         "HED", "RCF", "BDCN", "DexiNed", "PiDiNet", "EDTER",
         "UAED", "DiffusionEdge", "RankED", "MuGE", "SAUGE",
     ]
 
-    for model_name in tqdm(models_sequence, desc="Modelle", unit="Modell"):
-        wrapper = MODELS[model_name]
-        model_out = output_root / model_name
-        # Sauber neu anlegen
-        if model_out.exists():
-            shutil.rmtree(model_out)
-        wrapper.run(input_dir, model_out)
+    for name in tqdm(sequence, desc="Modelle", unit="Modell", colour="cyan"):
+        out_dir = output_root / name
+        if out_dir.exists():
+            shutil.rmtree(out_dir)
+        wrapper = MODELS[name]
+        wrapper.run(source, out_dir)
 
     messagebox.showinfo("EdgeTrace", "Alle Modelle fertig!")
 
+
+# CLI‑Alias (setup.py → console_scripts)
+cli = main
 
 if __name__ == "__main__":
     main()

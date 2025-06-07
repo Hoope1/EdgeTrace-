@@ -1,149 +1,216 @@
-"""Gemeinsame Wrapper für alle elf Modelle.
-Jeder Wrapper implementiert die Methode `run(input_dir: Path, output_dir: Path)`.
-Falls ein Modell als Python‑Paket verfügbar ist (PiDiNet), wird direkt importiert.
-Bei reinen Repo‑Demos (z. B. HED) wird ein Subprozess gegen das jeweilige Skript gestartet.
+"""
+EdgeTrace – Modell-Abstraktionsschicht
+
+Öffentliche Klassen  HED, RCF, … SAUGE  mit
+    .process_folder(input_dir, output_dir, device='cuda'|'cpu')
+
+• Gerät (CPU/GPU) wird bis auf Skript-Ebene durchgereicht.
+• Bei Modellen ohne Python-API wird das jeweilige Demo-Skript via
+  subprocess ausgeführt.
 """
 from __future__ import annotations
 
+import logging
+import os
 import subprocess
 import sys
 from pathlib import Path
-from typing import Callable, Dict, List
+from typing import Dict, List, Protocol, runtime_checkable
 
-import logging
-
-LOGGER = logging.getLogger(__name__)
-_HANDLER = logging.StreamHandler(sys.stdout)
+# --------------------------------------------------------------------- #
+# Logging
+# --------------------------------------------------------------------- #
 logging.basicConfig(
     level=logging.INFO,
     format="[%(asctime)s] %(levelname)s – %(message)s",
-    handlers=[_HANDLER],
+    handlers=[logging.StreamHandler(sys.stdout)],
 )
+LOG = logging.getLogger(__name__)
+
+CUDA_AVAILABLE = "cuda" if os.environ.get("CUDA_VISIBLE_DEVICES", "") else "cpu"
 
 
-class ModelWrapper:
-    """Basisklasse für alle Modelle."""
+# --------------------------------------------------------------------- #
+# Typ-Protokoll
+# --------------------------------------------------------------------- #
+@runtime_checkable
+class EdgeModel(Protocol):
+    name: str
 
-    def __init__(self, name: str, runner: Callable[[Path, Path], None]):
-        self.name = name
-        self._runner = runner
-
-    def run(self, input_dir: Path, output_dir: Path) -> None:
-        output_dir.mkdir(parents=True, exist_ok=True)
-        LOGGER.info("⇒ Starte %s", self.name)
-        try:
-            self._runner(input_dir, output_dir)
-            LOGGER.info("✓ %s abgeschlossen", self.name)
-        except Exception as exc:  # pylint: disable=broad-except
-            LOGGER.error("✗ %s fehlgeschlagen: %s", self.name, exc, exc_info=True)
+    @staticmethod
+    def process_folder(
+        input_dir: str, output_dir: str, device: str = "cpu"
+    ) -> None: ...
 
 
-# ---------------------------------------------------------
-# Hilfsfunktionen pro Modell
-# ---------------------------------------------------------
-
-def _subproc(cmd: List[str]) -> None:
-    """Ausführen eines Befehls mit Fehler­weiterleitung."""
+# --------------------------------------------------------------------- #
+# Hilfsfunktionen
+# --------------------------------------------------------------------- #
+def _run(cmd: List[str]) -> None:
     subprocess.run(cmd, check=True)
 
 
-def _hed(input_dir: Path, output_dir: Path) -> None:
-    _subproc([
-        sys.executable,
-        "models/HED/examples/hed_infer.py",
-        "--input", str(input_dir),
-        "--output", str(output_dir),
-    ])
+def _device_flag(device: str) -> List[str]:
+    """Erzeuge Demo-Script-Flags für CPU/GPU."""
+    return ["--cpu"] if device == "cpu" else []
 
 
-def _rcf(input_dir: Path, output_dir: Path) -> None:
-    _subproc([
-        sys.executable,
-        "models/RCF/demo.py",
-        str(input_dir),
-        str(output_dir),
-    ])
+# --------------------------------------------------------------------- #
+# Klassen-Implementierungen (11 Stück)
+# --------------------------------------------------------------------- #
+class HED:
+    name = "HED"
+
+    @staticmethod
+    def process_folder(inp: str, out: str, device: str = CUDA_AVAILABLE) -> None:
+        from models.HED.hed import HedModel  # type: ignore
+
+        LOG.info("HED → %s", out)
+        HedModel.process_folder(inp, out)
 
 
-def _bdcn(input_dir: Path, output_dir: Path) -> None:
-    _subproc([
-        sys.executable,
-        "models/BDCN/demo.py",
-        "--input_dir", str(input_dir),
-        "--output_dir", str(output_dir),
-    ])
+class RCF:
+    name = "RCF"
+
+    @staticmethod
+    def process_folder(inp: str, out: str, device: str = CUDA_AVAILABLE) -> None:
+        from models.RCF.main import RCF as RCFRunner  # type: ignore
+
+        LOG.info("RCF → %s", out)
+        RCFRunner.run_batch(inp, out)
 
 
-def _dexined(input_dir: Path, output_dir: Path) -> None:
-    _subproc([
-        sys.executable,
-        "models/DexiNed/main.py",
-        "--input_dir", str(input_dir),
-        "--output_dir", str(output_dir),
-    ])
+class BDCN:
+    name = "BDCN"
+
+    @staticmethod
+    def process_folder(inp: str, out: str, device: str = CUDA_AVAILABLE) -> None:
+        from models.BDCN.run import BDCN as BDCNRunner  # type: ignore
+
+        LOG.info("BDCN → %s", out)
+        BDCNRunner.process(inp, out)
 
 
-def _pidinet(input_dir: Path, output_dir: Path) -> None:
-    from pidinet import PiDiNet  # type: ignore
+class DexiNed:
+    name = "DexiNed"
 
-    PiDiNet.process_folder(str(input_dir), str(output_dir))
-
-
-def _edter(input_dir: Path, output_dir: Path) -> None:
-    _subproc([
-        sys.executable,
-        "models/EDTER/demo.py",
-        "--input", str(input_dir),
-        "--output", str(output_dir),
-    ])
-
-
-def _uaed(input_dir: Path, output_dir: Path) -> None:
-    _subproc([
-        sys.executable,
-        "models/UAED_MuGE/demo.py",
-        "--source", str(input_dir),
-        "--dest", str(output_dir),
-    ])
+    @staticmethod
+    def process_folder(inp: str, out: str, device: str = CUDA_AVAILABLE) -> None:
+        _run(
+            [
+                sys.executable,
+                "models/DexiNed/main.py",
+                "--input_dir",
+                inp,
+                "--output_dir",
+                out,
+                *_device_flag(device),
+            ]
+        )
 
 
-def _diffusion_edge(input_dir: Path, output_dir: Path) -> None:
-    _subproc([
-        sys.executable,
-        "models/DiffusionEdge/demo.py",
-        "--input_dir", str(input_dir),
-        "--output_dir", str(output_dir),
-    ])
+class PiDiNet:
+    name = "PiDiNet"
+
+    @staticmethod
+    def process_folder(inp: str, out: str, device: str = CUDA_AVAILABLE) -> None:
+        from pidinet import PiDiNet  # type: ignore
+
+        LOG.info("PiDiNet → %s  (device=%s)", out, device)
+        PiDiNet.process_folder(inp, out, device=device)
 
 
-def _ranked(input_dir: Path, output_dir: Path) -> None:
-    _subproc([
-        sys.executable,
-        "models/RankED/inference.py",
-        "--input", str(input_dir),
-        "--output", str(output_dir),
-    ])
+class EDTER:
+    name = "EDTER"
+
+    @staticmethod
+    def process_folder(inp: str, out: str, device: str = CUDA_AVAILABLE) -> None:
+        _run(
+            [
+                sys.executable,
+                "models/EDTER/demo.py",
+                "--input",
+                inp,
+                "--output",
+                out,
+                *_device_flag(device),
+            ]
+        )
 
 
-def _sauge(input_dir: Path, output_dir: Path) -> None:
-    _subproc([
-        sys.executable,
-        "models/SAUGE/demo.py",
-        "--src", str(input_dir),
-        "--dst", str(output_dir),
-    ])
+class UAED:
+    name = "UAED"  # gilt auch für MuGE
+
+    @staticmethod
+    def process_folder(inp: str, out: str, device: str = CUDA_AVAILABLE) -> None:
+        _run(
+            [
+                sys.executable,
+                "models/UAED_MuGE/demo.py",
+                "--source",
+                inp,
+                "--dest",
+                out,
+                *_device_flag(device),
+            ]
+        )
 
 
-MODELS: Dict[str, ModelWrapper] = {
-    "HED": ModelWrapper("HED", _hed),
-    "RCF": ModelWrapper("RCF", _rcf),
-    "BDCN": ModelWrapper("BDCN", _bdcn),
-    "DexiNed": ModelWrapper("DexiNed", _dexined),
-    "PiDiNet": ModelWrapper("PiDiNet", _pidinet),
-    "EDTER": ModelWrapper("EDTER", _edter),
-    "UAED": ModelWrapper("UAED", _uaed),
-    "DiffusionEdge": ModelWrapper("DiffusionEdge", _diffusion_edge),
-    "RankED": ModelWrapper("RankED", _ranked),
-    "MuGE": ModelWrapper("MuGE", _uaed),  # MuGE-Skripte liegen im UAED-Repo
-    "SAUGE": ModelWrapper("SAUGE", _sauge),
-}
+class DiffusionEdge:
+    name = "DiffusionEdge"
+
+    @staticmethod
+    def process_folder(inp: str, out: str, device: str = CUDA_AVAILABLE) -> None:
+        _run(
+            [
+                sys.executable,
+                "models/DiffusionEdge/demo.py",
+                "--input_dir",
+                inp,
+                "--output_dir",
+                out,
+                *_device_flag(device),
+            ]
+        )
+
+
+class RankED:
+    name = "RankED"
+
+    @staticmethod
+    def process_folder(inp: str, out: str, device: str = CUDA_AVAILABLE) -> None:
+        from models.RankED.inference import RankED as Runner  # type: ignore
+
+        LOG.info("RankED → %s", out)
+        Runner.batch_infer(inp, out, device=device)
+
+
+class SAUGE:
+    name = "SAUGE"
+
+    @staticmethod
+    def process_folder(inp: str, out: str, device: str = CUDA_AVAILABLE) -> None:
+        _run(
+            [
+                sys.executable,
+                "models/SAUGE/demo.py",
+                "--src",
+                inp,
+                "--dst",
+                out,
+                *_device_flag(device),
+            ]
+        )
+
+
+class MuGE(UAED):
+    name = "MuGE"  # Alias, benutzt UAED-Demo
+
+
+# --------------------------------------------------------------------- #
+# Öffentliche Tabelle
+# --------------------------------------------------------------------- #
+PUBLIC_MODELS: Dict[str, EdgeModel] = {cls.name: cls for cls in (
+    HED, RCF, BDCN, DexiNed, PiDiNet,
+    EDTER, UAED, DiffusionEdge, RankED, SAUGE, MuGE
+)}

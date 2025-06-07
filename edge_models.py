@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import logging
 import os
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -37,9 +38,12 @@ CUDA_AVAILABLE = "cuda" if os.environ.get("CUDA_VISIBLE_DEVICES", "") else "cpu"
 class EdgeModel(Protocol):
     name: str
 
-    @staticmethod
     def process_folder(
-        input_dir: str, output_dir: str, device: str = "cpu"
+        self, input_dir: str, output_dir: str, device: str = "cpu"
+    ) -> None: ...
+
+    def process_image(
+        self, input_path: str, output_dir: str, device: str = "cpu"
     ) -> None: ...
 
 
@@ -55,47 +59,82 @@ def _device_flag(device: str) -> List[str]:
     return ["--cpu"] if device == "cpu" else []
 
 
+class BaseModel:
+    """Gemeinsame Basis mit Dateiprüfung und Bildverarbeitung."""
+
+    def __init__(self, name: str, model_dir: str | None = None) -> None:
+        self.name = name
+        self.model_dir = Path(model_dir) if model_dir else None
+
+    # ------------------------------------------------------------------
+    # Hilfsmethoden
+    # ------------------------------------------------------------------
+    def _ensure_model_files(self) -> None:
+        if self.model_dir is None:
+            return
+        directory = self.model_dir
+        files = [p for p in directory.glob("*") if p.name != ".gitkeep"]
+        if not files:
+            raise FileNotFoundError(
+                f"Modelldateien für {self.name} fehlen unter {directory}. "
+                "Siehe README für Download-Anweisungen."
+            )
+
+    def process_image(
+        self, inp: str, out_dir: str, device: str = CUDA_AVAILABLE
+    ) -> None:
+        """Standardimplementierung – kopiert nur das Bild."""
+        self._ensure_model_files()
+        dst = Path(out_dir) / Path(inp).name
+        LOG.debug("%s: Kopiere %s nach %s", self.name, inp, dst)
+        shutil.copy(inp, dst)
+
+
 # --------------------------------------------------------------------- #
 # Klassen-Implementierungen (11 Stück)
 # --------------------------------------------------------------------- #
-class HED:
-    name = "HED"
+class HED(BaseModel):
+    def __init__(self, name: str = "HED") -> None:
+        super().__init__(name, "models/HED")
 
-    @staticmethod
-    def process_folder(inp: str, out: str, device: str = CUDA_AVAILABLE) -> None:
+    def process_folder(self, inp: str, out: str, device: str = CUDA_AVAILABLE) -> None:
         from models.HED.hed import HedModel  # type: ignore
 
-        LOG.info("HED → %s", out)
-        HedModel.process_folder(inp, out)
+        self._ensure_model_files()
+        LOG.info("HED → %s (device=%s)", out, device)
+        HedModel.process_folder(inp, out, device=device)
 
 
-class RCF:
-    name = "RCF"
+class RCF(BaseModel):
+    def __init__(self, name: str = "RCF") -> None:
+        super().__init__(name, "models/RCF")
 
-    @staticmethod
-    def process_folder(inp: str, out: str, device: str = CUDA_AVAILABLE) -> None:
+    def process_folder(self, inp: str, out: str, device: str = CUDA_AVAILABLE) -> None:
         from models.RCF.main import RCF as RCFRunner  # type: ignore
 
-        LOG.info("RCF → %s", out)
-        RCFRunner.run_batch(inp, out)
+        self._ensure_model_files()
+        LOG.info("RCF → %s (device=%s)", out, device)
+        RCFRunner.run_batch(inp, out, device=device)
 
 
-class BDCN:
-    name = "BDCN"
+class BDCN(BaseModel):
+    def __init__(self, name: str = "BDCN") -> None:
+        super().__init__(name, "models/BDCN")
 
-    @staticmethod
-    def process_folder(inp: str, out: str, device: str = CUDA_AVAILABLE) -> None:
+    def process_folder(self, inp: str, out: str, device: str = CUDA_AVAILABLE) -> None:
         from models.BDCN.run import BDCN as BDCNRunner  # type: ignore
 
-        LOG.info("BDCN → %s", out)
-        BDCNRunner.process(inp, out)
+        self._ensure_model_files()
+        LOG.info("BDCN → %s (device=%s)", out, device)
+        BDCNRunner.process(inp, out, device=device)
 
 
-class DexiNed:
-    name = "DexiNed"
+class DexiNed(BaseModel):
+    def __init__(self, name: str = "DexiNed") -> None:
+        super().__init__(name, "models/DexiNed")
 
-    @staticmethod
-    def process_folder(inp: str, out: str, device: str = CUDA_AVAILABLE) -> None:
+    def process_folder(self, inp: str, out: str, device: str = CUDA_AVAILABLE) -> None:
+        self._ensure_model_files()
         _run(
             [
                 sys.executable,
@@ -109,22 +148,28 @@ class DexiNed:
         )
 
 
-class PiDiNet:
-    name = "PiDiNet"
+class PiDiNet(BaseModel):
+    def __init__(self, name: str = "PiDiNet") -> None:
+        super().__init__(name)
 
-    @staticmethod
-    def process_folder(inp: str, out: str, device: str = CUDA_AVAILABLE) -> None:
-        from pidinet import PiDiNet  # type: ignore
+    def process_folder(self, inp: str, out: str, device: str = CUDA_AVAILABLE) -> None:
+        try:
+            from pidinet import PiDiNet as PiDi  # type: ignore
+        except Exception as exc:  # pragma: no cover - import guard
+            raise FileNotFoundError(
+                "PiDiNet-Modul fehlt. `pip install git+https://github.com/hellozhuo/pidinet.git`"
+            ) from exc
 
         LOG.info("PiDiNet → %s  (device=%s)", out, device)
-        PiDiNet.process_folder(inp, out, device=device)
+        PiDi.process_folder(inp, out, device=device)
 
 
-class EDTER:
-    name = "EDTER"
+class EDTER(BaseModel):
+    def __init__(self, name: str = "EDTER") -> None:
+        super().__init__(name, "models/EDTER")
 
-    @staticmethod
-    def process_folder(inp: str, out: str, device: str = CUDA_AVAILABLE) -> None:
+    def process_folder(self, inp: str, out: str, device: str = CUDA_AVAILABLE) -> None:
+        self._ensure_model_files()
         _run(
             [
                 sys.executable,
@@ -138,11 +183,12 @@ class EDTER:
         )
 
 
-class UAED:
-    name = "UAED"  # gilt auch für MuGE
+class UAED(BaseModel):
+    def __init__(self, name: str = "UAED") -> None:
+        super().__init__(name, "models/UAED_MuGE")
 
-    @staticmethod
-    def process_folder(inp: str, out: str, device: str = CUDA_AVAILABLE) -> None:
+    def process_folder(self, inp: str, out: str, device: str = CUDA_AVAILABLE) -> None:
+        self._ensure_model_files()
         _run(
             [
                 sys.executable,
@@ -156,11 +202,12 @@ class UAED:
         )
 
 
-class DiffusionEdge:
-    name = "DiffusionEdge"
+class DiffusionEdge(BaseModel):
+    def __init__(self, name: str = "DiffusionEdge") -> None:
+        super().__init__(name, "models/DiffusionEdge")
 
-    @staticmethod
-    def process_folder(inp: str, out: str, device: str = CUDA_AVAILABLE) -> None:
+    def process_folder(self, inp: str, out: str, device: str = CUDA_AVAILABLE) -> None:
+        self._ensure_model_files()
         _run(
             [
                 sys.executable,
@@ -174,22 +221,24 @@ class DiffusionEdge:
         )
 
 
-class RankED:
-    name = "RankED"
+class RankED(BaseModel):
+    def __init__(self, name: str = "RankED") -> None:
+        super().__init__(name, "models/RankED")
 
-    @staticmethod
-    def process_folder(inp: str, out: str, device: str = CUDA_AVAILABLE) -> None:
+    def process_folder(self, inp: str, out: str, device: str = CUDA_AVAILABLE) -> None:
         from models.RankED.inference import RankED as Runner  # type: ignore
 
+        self._ensure_model_files()
         LOG.info("RankED → %s", out)
         Runner.batch_infer(inp, out, device=device)
 
 
-class SAUGE:
-    name = "SAUGE"
+class SAUGE(BaseModel):
+    def __init__(self, name: str = "SAUGE") -> None:
+        super().__init__(name, "models/SAUGE")
 
-    @staticmethod
-    def process_folder(inp: str, out: str, device: str = CUDA_AVAILABLE) -> None:
+    def process_folder(self, inp: str, out: str, device: str = CUDA_AVAILABLE) -> None:
+        self._ensure_model_files()
         _run(
             [
                 sys.executable,
@@ -204,13 +253,17 @@ class SAUGE:
 
 
 class MuGE(UAED):
-    name = "MuGE"  # Alias, benutzt UAED-Demo
+    def __init__(self, name: str = "MuGE") -> None:
+        super().__init__(name)
 
 
 # --------------------------------------------------------------------- #
 # Öffentliche Tabelle
 # --------------------------------------------------------------------- #
-PUBLIC_MODELS: Dict[str, EdgeModel] = {cls.name: cls for cls in (
-    HED, RCF, BDCN, DexiNed, PiDiNet,
-    EDTER, UAED, DiffusionEdge, RankED, SAUGE, MuGE
-)}
+PUBLIC_MODELS: Dict[str, EdgeModel] = {
+    model.name: model
+    for model in (
+        HED(), RCF(), BDCN(), DexiNed(), PiDiNet(),
+        EDTER(), UAED(), DiffusionEdge(), RankED(), SAUGE(), MuGE()
+    )
+}

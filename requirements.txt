@@ -1,7 +1,15 @@
-# Laufzeit‑Pakete
-torch>=1.8
-torchvision>=0.9
-opencv-python>=4.0
-numpy>=1.19
-tqdm>=4.60
-# tkinter ist in den meisten Python‑Distributionen bereits enthalten
+# Kernbibliotheken
+torch>=1.13          # GPU‑/CPU‑Support ≥ Ampere, LTS 2022
+torchvision>=0.14    # passende TorchVision‑Version
+opencv-python>=4.7   # CV‑IO und Bildvorverarbeitung
+numpy>=1.23
+
+# UX / CLI
+rich>=13.3           # farbige Terminal‑Ausgabe
+click>=8.1           # Command‑Line‑Interface (für bootstrap)
+textual>=0.34        # optionales TUI‑Frontend (kann entfernt werden)
+tqdm>=4.66           # Fortschrittsbalken
+
+# GUI
+pyinstaller>=5.12    # für spätes Packaging (optional)
+# Tkinter ist in allen gängigen CPython‑Builds enthalten

@@ -6,6 +6,7 @@ EdgeTrace – GUI/CLI.
 """
 from __future__ import annotations
 
+import logging
 import shutil
 import sys
 from pathlib import Path
@@ -19,6 +20,12 @@ from rich.console import Console
 from tqdm import tqdm
 
 from edge_models import PUBLIC_MODELS
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="[%(asctime)s] %(levelname)s - %(message)s",
+)
+LOG = logging.getLogger(__name__)
 
 console = Console()
 
@@ -51,24 +58,37 @@ def main() -> None:
     dst_root = Path("output")
     dst_root.mkdir(exist_ok=True)
 
-    order = ["HED", "RCF", "BDCN", "DexiNed", "PiDiNet",
-             "EDTER", "UAED", "DiffusionEdge", "RankED", "MuGE", "SAUGE"]
+    order = [
+        "HED",
+        "RCF",
+        "BDCN",
+        "DexiNed",
+        "PiDiNet",
+        "EDTER",
+        "UAED",
+        "DiffusionEdge",
+        "RankED",
+        "MuGE",
+        "SAUGE",
+    ]
 
-    for model in tqdm(order, desc="Modelle", unit="Modell", colour="cyan"):
-        out = dst_root / model
+    for model_name in tqdm(order, desc="Modelle", unit="Modell", colour="cyan"):
+        out = dst_root / model_name
         if out.exists():
             shutil.rmtree(out)
+        out.mkdir(parents=True, exist_ok=True)
 
-        # Per-Bild-Fortschritt (nested tqdm)
-        img_iter = tqdm(imgs, desc=model, leave=False, unit="Bild", colour="green")
-        for _ in img_iter:
-            pass  # Placeholder – die Modelle verarbeiten selbstständig ganze Ordner
-
-        PUBLIC_MODELS[model].process_folder(
-            str(src),
-            str(out),
-            device="cuda" if cuda else "cpu"
-        )
+        img_iter = tqdm(imgs, desc=model_name, leave=False, unit="Bild", colour="green")
+        for img in img_iter:
+            try:
+                PUBLIC_MODELS[model_name].process_image(
+                    str(img),
+                    str(out),
+                    device="cuda" if cuda else "cpu",
+                )
+            except Exception:
+                LOG.exception("%s schlug fehl bei %s", model_name, img)
+                continue
 
     messagebox.showinfo("EdgeTrace", "Alle Modelle fertig!")
 

@@ -1,10 +1,8 @@
-"""EdgeTrace – GUI‑/CLI‑Hauptskript.
-
-Funktionen:
-* Tkinter‑Dialog für Quellordner
-* CUDA‑Erkennung mit Hinweis
-* Verarbeitung der 11 Modelle via Wrapper
-* Fortschritts‑TQDM (Modelle + optional pro Bild)
+"""
+EdgeTrace – GUI/CLI.
+• Tkinter-Ordnerdialog
+• CUDA-/CPU-Check
+• per-Modell und optional per-Bild Fortschrittsbalken
 """
 from __future__ import annotations
 
@@ -20,64 +18,62 @@ import torch
 from rich.console import Console
 from tqdm import tqdm
 
-from edge_models import MODELS
+from edge_models import PUBLIC_MODELS
 
 console = Console()
 
 
-# ---------------------------------------------------------------------- #
-# Hilfsroutinen
-# ---------------------------------------------------------------------- #
-
-def _select_directory() -> Path | None:
+def _select_dir() -> Path | None:
     root = tk.Tk()
     root.withdraw()
-    path = filedialog.askdirectory(title="Bilder‑Ordner auswählen")
-    return Path(path) if path else None
+    sel = filedialog.askdirectory(title="Bilder-Ordner auswählen")
+    return Path(sel) if sel else None
 
 
-def _valid_images(directory: Path) -> List[Path]:
-    return sorted([*directory.glob("*.png"), *directory.glob("*.jpg"), *directory.glob("*.jpeg")])
+def _images(p: Path) -> List[Path]:
+    return sorted([*p.glob("*.png"), *p.glob("*.jpg"), *p.glob("*.jpeg")])
 
 
-# ---------------------------------------------------------------------- #
-# Hauptlogik
-# ---------------------------------------------------------------------- #
-
-def main() -> None:  # noqa: C901 (keep it simple)
-    source = _select_directory()
-    if source is None:
-        console.print("[yellow]Abgebrochen – kein Ordner ausgewählt.")
+def main() -> None:
+    src = _select_dir()
+    if src is None:
+        console.print("[yellow]Abbruch – kein Ordner gewählt.")
         sys.exit(0)
 
-    images = _valid_images(source)
-    if not images:
-        messagebox.showerror("EdgeTrace", "Keine PNG/JPG‑Bilder im Ordner gefunden.")
+    imgs = _images(src)
+    if not imgs:
+        messagebox.showerror("EdgeTrace", "Keine PNG/JPG-Bilder im Ordner.")
         sys.exit(1)
 
     cuda = torch.cuda.is_available()
-    console.print(f"GPU: {'[green]✅' if cuda else '[red]❌'}  (CUDA {'aktiv' if cuda else 'nicht gefunden'})")
+    console.print(f"CUDA: {'[green]✓' if cuda else '[red]✗'}")
 
-    output_root = Path("output")
-    output_root.mkdir(exist_ok=True)
+    dst_root = Path("output")
+    dst_root.mkdir(exist_ok=True)
 
-    sequence = [
-        "HED", "RCF", "BDCN", "DexiNed", "PiDiNet", "EDTER",
-        "UAED", "DiffusionEdge", "RankED", "MuGE", "SAUGE",
-    ]
+    order = ["HED", "RCF", "BDCN", "DexiNed", "PiDiNet",
+             "EDTER", "UAED", "DiffusionEdge", "RankED", "MuGE", "SAUGE"]
 
-    for name in tqdm(sequence, desc="Modelle", unit="Modell", colour="cyan"):
-        out_dir = output_root / name
-        if out_dir.exists():
-            shutil.rmtree(out_dir)
-        wrapper = MODELS[name]
-        wrapper.run(source, out_dir)
+    for model in tqdm(order, desc="Modelle", unit="Modell", colour="cyan"):
+        out = dst_root / model
+        if out.exists():
+            shutil.rmtree(out)
+
+        # Per-Bild-Fortschritt (nested tqdm)
+        img_iter = tqdm(imgs, desc=model, leave=False, unit="Bild", colour="green")
+        for _ in img_iter:
+            pass  # Placeholder – die Modelle verarbeiten selbstständig ganze Ordner
+
+        PUBLIC_MODELS[model].process_folder(
+            str(src),
+            str(out),
+            device="cuda" if cuda else "cpu"
+        )
 
     messagebox.showinfo("EdgeTrace", "Alle Modelle fertig!")
 
 
-# CLI‑Alias (setup.py → console_scripts)
-cli = main
+cli = main  # setup.py entry-point
 
 if __name__ == "__main__":
     main()

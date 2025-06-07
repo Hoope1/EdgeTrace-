@@ -1,3 +1,26 @@
+## EdgeTrace
+
+EdgeTrace ist ein Batch‑Tool, das **elf** führende Deep‑Learning‑Verfahren zur Kantenerkennung auf einen Bild‑Ordner anwendet und für jedes Modell eine Schwarz‑Weiß‑Kontur‑Skizze erzeugt. Ideal für Künstler:innen, die Motive mit Finelinern auf dem Leuchttisch nachzeichnen möchten.
+
+---
+
+## Features
+- **Interaktive Ordnerauswahl** via Tkinter
+- **Automatisierte Pipeline** mit HED, RCF, BDCN, DexiNed, PiDiNet, EDTER, UAED/MuGE, DiffusionEdge, RankED und SAUGE
+- **GPU‑Unterstützung** (CUDA) mit CPU‑Fallback
+- **Fortschrittsanzeigen** dank `tqdm`
+- **Saubere Ordnerstruktur** unter `output/`
+
+---
+
+## Voraussetzungen
+- Python ≥ 3.8
+- (optional) NVIDIA‑GPU + CUDA
+
+```bash
+pip install -r requirements.txt
+
+
 # EdgeTrace
 
 EdgeTrace ist ein Python-Tool, das einen beliebigen Bilder-Ordner durch elf aktuelle Deep-Learning-Modelle zur Kantenerkennung jagt und deren Ergebnisse als saubere Schwarz-Weiß-Skizzen ablegt. Die Modelle stammen aus dem [Awesome-Edge-Detection-Papers](https://github.com/MarkMoHR/Awesome-Edge-Detection-Papers) Verzeichnis. Fortschritt und Fehler werden im Terminal angezeigt.

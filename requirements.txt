@@ -1,0 +1,7 @@
+# Laufzeit-Pakete
+torch>=1.8
+torchvision>=0.9
+opencv-python>=4.0
+numpy>=1.19
+tqdm>=4.60
+# tkinter ist in den meisten Python-Distributionen bereits enthalten

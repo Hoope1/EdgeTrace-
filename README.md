@@ -1,6 +1,3 @@
-# EdgeTrace-
-Edge Detection 
-
 # EdgeTrace
 
 Ein spezialisiertes Python-Tool, das aus einem gewählten Bilder-Ordner automatisch **elf** führende Deep-Learning–Kantenerkennungsmodelle abarbeitet und für jedes Modell saubere Schwarz-Weiß-Konturen-Skizzen für dein Fineliner-Nachzeichnen erzeugt. Alle Ergebnisse werden in namentlich passenden Unterordnern gespeichert, und der Fortschritt wird in Echtzeit angezeigt.
@@ -9,14 +6,14 @@ Ein spezialisiertes Python-Tool, das aus einem gewählten Bilder-Ordner automati
 
 ## Inhaltsverzeichnis
 
-1. [Zusammenfassung](#zusammenfassung)  
-2. [Features](#features)  
-3. [Voraussetzungen](#voraussetzungen)  
-4. [Installation](#installation)  
-5. [Verzeichnisstruktur](#verzeichnisstruktur)  
-6. [Benutzung](#benutzung)  
-7. [Modelle & Code-Snippets](#modelle--code-snippets)  
-8. [Lizenz](#lizenz)  
+1. [Zusammenfassung](#zusammenfassung)
+2. [Features](#features)
+3. [Voraussetzungen](#voraussetzungen)
+4. [Installation](#installation)
+5. [Verzeichnisstruktur](#verzeichnisstruktur)
+6. [Benutzung](#benutzung)
+7. [Modelle & Code-Snippets](#modelle--code-snippets)
+8. [Lizenz](#lizenz)
 
 ---
 
@@ -29,8 +26,7 @@ Ein spezialisiertes Python-Tool, das aus einem gewählten Bilder-Ordner automati
 ## Features
 
 - **Interaktive Ordnerauswahl**  
-  Tkinter-Dialog zur Auswahl des Eingabe-Verzeichnisses.  
-
+  Tkinter-Dialog zur Auswahl des Eingabe-Verzeichnisses.
 - **Batch-Verarbeitung mit 11 Modellen**  
   1. HED (ICCV 2015)  
   2. RCF (CVPR 2017)  
@@ -42,26 +38,23 @@ Ein spezialisiertes Python-Tool, das aus einem gewählten Bilder-Ordner automati
   8. DiffusionEdge (AAAI 2024)  
   9. RankED (CVPR 2024)  
   10. MuGE (CVPR 2024)  
-  11. SAUGE (AAAI 2025)  
-
+  11. SAUGE (AAAI 2025)
 - **Fortschrittsbalken**  
-  Live-Anzeige im Terminal via `tqdm`.  
-
+  Live-Anzeige im Terminal via `tqdm`.
 - **GPU-Unterstützung**  
-  CUDA-Beschleunigung optional, CPU-Fallback möglich.  
-
+  CUDA-Beschleunigung optional, CPU-Fallback möglich.
 - **Strukturierte Ausgabe**  
-  Für jedes Modell ein eigener Unterordner unter `output/`.  
+  Für jedes Modell ein eigener Unterordner unter `output/`.
 
 ---
 
 ## Voraussetzungen
 
-- **Python 3.8+**  
-- **Optional: CUDA-fähige GPU** für schnellere Verarbeitung  
-- **Betriebssystem**: Linux, macOS oder Windows  
+- **Python 3.8+**
+- **Optional: CUDA-fähige GPU** für schnellere Verarbeitung
+- **Betriebssystem**: Linux, macOS oder Windows
 
-**Python-Pakete** (in `requirements.txt`):  
+**Python-Pakete** (in `requirements.txt`):
 ```text
 torch>=1.8
 torchvision
@@ -69,65 +62,52 @@ opencv-python
 tqdm
 tkinter
 numpy
-
+```
 
 ---
 
-Installation
+## Installation
 
 1. Repository klonen
-
-git clone https://github.com/DeinUser/EdgeTrace.git
-cd EdgeTrace
-
-
+   ```bash
+   git clone https://github.com/DeinUser/EdgeTrace.git
+   cd EdgeTrace
+   ```
 2. Dependencies installieren
-
-pip install -r requirements.txt
-
-
+   ```bash
+   pip install -r requirements.txt
+   ```
 3. Modelle herunterladen
-
-# 1. HED
-git clone https://github.com/s9xie/hed.git models/HED
-
-# 2. RCF
-git clone https://github.com/yun-liu/RCF-PyTorch.git models/RCF
-
-# 3. BDCN
-git clone https://github.com/pkuCactus/BDCN.git models/BDCN
-
-# 4. DexiNed
-git clone https://github.com/xavysp/DexiNed.git models/DexiNed
-
-# 5. PiDiNet
-pip install git+https://github.com/hellozhuo/pidinet.git
-
-# 6. EDTER
-git clone https://github.com/MengyangPu/EDTER.git models/EDTER
-
-# 7. UAED (inkl. MuGE)
-git clone https://github.com/ZhouCX117/UAED_MuGE.git models/UAED_MuGE
-
-# 8. DiffusionEdge
-git clone https://github.com/GuHuangAI/DiffusionEdge.git models/DiffusionEdge
-
-# 9. RankED
-git clone https://github.com/Bedrettin-Cetinkaya/RankED.git models/RankED
-
-# 10. MuGE
-# (bereits im UAED_MuGE-Repo enthalten)
-
-# 11. SAUGE
-git clone https://github.com/Star-xing1/SAUGE.git models/SAUGE
-
-
-
+   ```bash
+   # 1. HED
+   git clone https://github.com/s9xie/hed.git models/HED
+   # 2. RCF
+   git clone https://github.com/yun-liu/RCF-PyTorch.git models/RCF
+   # 3. BDCN
+   git clone https://github.com/pkuCactus/BDCN.git models/BDCN
+   # 4. DexiNed
+   git clone https://github.com/xavysp/DexiNed.git models/DexiNed
+   # 5. PiDiNet
+   pip install git+https://github.com/hellozhuo/pidinet.git
+   # 6. EDTER
+   git clone https://github.com/MengyangPu/EDTER.git models/EDTER
+   # 7. UAED (inkl. MuGE)
+   git clone https://github.com/ZhouCX117/UAED_MuGE.git models/UAED_MuGE
+   # 8. DiffusionEdge
+   git clone https://github.com/GuHuangAI/DiffusionEdge.git models/DiffusionEdge
+   # 9. RankED
+   git clone https://github.com/Bedrettin-Cetinkaya/RankED.git models/RankED
+   # 10. MuGE
+   # (bereits im UAED_MuGE-Repo enthalten)
+   # 11. SAUGE
+   git clone https://github.com/Star-xing1/SAUGE.git models/SAUGE
+   ```
 
 ---
 
-Verzeichnisstruktur
+## Verzeichnisstruktur
 
+```
 EdgeTrace/
 ├── edge_trace.py         # Hauptskript
 ├── requirements.txt      # Python-Pakete
@@ -153,87 +133,69 @@ EdgeTrace/
     ├── RankED/
     ├── MuGE/
     └── SAUGE/
-
+```
 
 ---
 
-Benutzung
+## Benutzung
 
+```bash
 python edge_trace.py
+```
 
-1. Ordnerauswahl
-Tkinter-Dialog öffnet sich, um dein Bilder-Verzeichnis auszuwählen.
-
-
-2. Modell-Pipeline
-Nacheinander werden alle elf Modelle ausgeführt. Beispiel-Aufrufe:
-
-# HED
-from models.HED.hed import HedModel
-HedModel.process_folder(input_dir, 'output/HED/')
-
-# RCF
-from models.RCF.main import RCF
-RCF.run_batch(input_dir, 'output/RCF/')
-
-# BDCN
-from models.BDCN.run import BDCN
-BDCN.process(input_dir, 'output/BDCN/')
-
-# DexiNed
-!python models/DexiNed/main.py --input_dir {input_dir} --output_dir output/DexiNed/
-
-# PiDiNet
-from pidinet import PiDiNet
-PiDiNet.process_folder(input_dir, 'output/PiDiNet/')
-
-# EDTER
-!python models/EDTER/demo.py --input {input_dir} --output output/EDTER/
-
-# UAED/MuGE
-!python models/UAED_MuGE/demo.py --source {input_dir} --dest output/UAED/
-
-# DiffusionEdge
-!python models/DiffusionEdge/demo.py --input_dir {input_dir} --output_dir output/DiffusionEdge/
-
-# RankED
-from models.RankED.inference import RankED
-RankED.batch_infer(input_dir, 'output/RankED/')
-
-# SAUGE
-!python models/SAUGE/demo.py --src {input_dir} --dst output/SAUGE/
-
-
-3. Fortschrittsbalken
-tqdm zeigt den Live-Status jedes Modells im Terminal an.
-
-
-
+1. **Ordnerauswahl**  
+   Tkinter-Dialog öffnet sich, um dein Bilder-Verzeichnis auszuwählen.
+2. **Modell-Pipeline**  
+   Nacheinander werden alle elf Modelle ausgeführt. Beispiel-Aufrufe:
+   ```python
+   # HED
+   from models.HED.hed import HedModel
+   HedModel.process_folder(input_dir, 'output/HED/')
+   # RCF
+   from models.RCF.main import RCF
+   RCF.run_batch(input_dir, 'output/RCF/')
+   # BDCN
+   from models.BDCN.run import BDCN
+   BDCN.process(input_dir, 'output/BDCN/')
+   # DexiNed
+   !python models/DexiNed/main.py --input_dir {input_dir} --output_dir output/DexiNed/
+   # PiDiNet
+   from pidinet import PiDiNet
+   PiDiNet.process_folder(input_dir, 'output/PiDiNet/')
+   # EDTER
+   !python models/EDTER/demo.py --input {input_dir} --output output/EDTER/
+   # UAED/MuGE
+   !python models/UAED_MuGE/demo.py --source {input_dir} --dest output/UAED/
+   # DiffusionEdge
+   !python models/DiffusionEdge/demo.py --input_dir {input_dir} --output_dir output/DiffusionEdge/
+   # RankED
+   from models.RankED.inference import RankED
+   RankED.batch_infer(input_dir, 'output/RankED/')
+   # SAUGE
+   !python models/SAUGE/demo.py --src {input_dir} --dst output/SAUGE/
+   ```
+3. **Fortschrittsbalken**  
+   `tqdm` zeigt den Live-Status jedes Modells im Terminal an.
 
 ---
 
-Modelle & Code-Snippets
+## Modelle & Code-Snippets
 
-Modell	Repo-Link	Aufruf / Demo
-
-HED	https://github.com/s9xie/hed	HedModel.process_folder(...)
-RCF	https://github.com/yun-liu/RCF-PyTorch	RCF.run_batch(...)
-BDCN	https://github.com/pkuCactus/BDCN	BDCN.process(...)
-DexiNed	https://github.com/xavysp/DexiNed	python models/DexiNed/main.py ...
-PiDiNet	https://github.com/hellozhuo/pidinet	PiDiNet.process_folder(...)
-EDTER	https://github.com/MengyangPu/EDTER	python models/EDTER/demo.py ...
-UAED/MuGE	https://github.com/ZhouCX117/UAED_MuGE	python models/UAED_MuGE/demo.py ...
-DiffusionEdge	https://github.com/GuHuangAI/DiffusionEdge	python models/DiffusionEdge/demo.py ...
-RankED	https://github.com/Bedrettin-Cetinkaya/RankED	RankED.batch_infer(...)
-SAUGE	https://github.com/Star-xing1/SAUGE	python models/SAUGE/demo.py ...
-
-
+| Modell | Repo-Link | Aufruf / Demo |
+|-------|-----------|---------------|
+| HED | <https://github.com/s9xie/hed> | `HedModel.process_folder(...)` |
+| RCF | <https://github.com/yun-liu/RCF-PyTorch> | `RCF.run_batch(...)` |
+| BDCN | <https://github.com/pkuCactus/BDCN> | `BDCN.process(...)` |
+| DexiNed | <https://github.com/xavysp/DexiNed> | `python models/DexiNed/main.py ...` |
+| PiDiNet | <https://github.com/hellozhuo/pidinet> | `PiDiNet.process_folder(...)` |
+| EDTER | <https://github.com/MengyangPu/EDTER> | `python models/EDTER/demo.py ...` |
+| UAED/MuGE | <https://github.com/ZhouCX117/UAED_MuGE> | `python models/UAED_MuGE/demo.py ...` |
+| DiffusionEdge | <https://github.com/GuHuangAI/DiffusionEdge> | `python models/DiffusionEdge/demo.py ...` |
+| RankED | <https://github.com/Bedrettin-Cetinkaya/RankED> | `RankED.batch_infer(...)` |
+| SAUGE | <https://github.com/Star-xing1/SAUGE> | `python models/SAUGE/demo.py ...` |
 
 ---
 
-Lizenz
+## Lizenz
 
 Dieses Projekt steht unter der MIT License.
-
-
-

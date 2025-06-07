@@ -62,13 +62,17 @@ def _device_flag(device: str) -> List[str]:
 class BaseModel:
     """Gemeinsame Basis mit Dateiprüfung und Bildverarbeitung."""
 
-    def __init__(self, name: str) -> None:
+    def __init__(self, name: str, model_dir: str | None = None) -> None:
         self.name = name
+        self.model_dir = Path(model_dir) if model_dir else None
 
     # ------------------------------------------------------------------
     # Hilfsmethoden
     # ------------------------------------------------------------------
-    def _ensure_model_files(self, directory: Path) -> None:
+    def _ensure_model_files(self) -> None:
+        if self.model_dir is None:
+            return
+        directory = self.model_dir
         files = [p for p in directory.glob("*") if p.name != ".gitkeep"]
         if not files:
             raise FileNotFoundError(
@@ -80,6 +84,7 @@ class BaseModel:
         self, inp: str, out_dir: str, device: str = CUDA_AVAILABLE
     ) -> None:
         """Standardimplementierung – kopiert nur das Bild."""
+        self._ensure_model_files()
         dst = Path(out_dir) / Path(inp).name
         LOG.debug("%s: Kopiere %s nach %s", self.name, inp, dst)
         shutil.copy(inp, dst)
@@ -90,46 +95,46 @@ class BaseModel:
 # --------------------------------------------------------------------- #
 class HED(BaseModel):
     def __init__(self, name: str = "HED") -> None:
-        super().__init__(name)
+        super().__init__(name, "models/HED")
 
     def process_folder(self, inp: str, out: str, device: str = CUDA_AVAILABLE) -> None:
         from models.HED.hed import HedModel  # type: ignore
 
-        self._ensure_model_files(Path("models/HED"))
+        self._ensure_model_files()
         LOG.info("HED → %s (device=%s)", out, device)
         HedModel.process_folder(inp, out, device=device)
 
 
 class RCF(BaseModel):
     def __init__(self, name: str = "RCF") -> None:
-        super().__init__(name)
+        super().__init__(name, "models/RCF")
 
     def process_folder(self, inp: str, out: str, device: str = CUDA_AVAILABLE) -> None:
         from models.RCF.main import RCF as RCFRunner  # type: ignore
 
-        self._ensure_model_files(Path("models/RCF"))
+        self._ensure_model_files()
         LOG.info("RCF → %s (device=%s)", out, device)
         RCFRunner.run_batch(inp, out, device=device)
 
 
 class BDCN(BaseModel):
     def __init__(self, name: str = "BDCN") -> None:
-        super().__init__(name)
+        super().__init__(name, "models/BDCN")
 
     def process_folder(self, inp: str, out: str, device: str = CUDA_AVAILABLE) -> None:
         from models.BDCN.run import BDCN as BDCNRunner  # type: ignore
 
-        self._ensure_model_files(Path("models/BDCN"))
+        self._ensure_model_files()
         LOG.info("BDCN → %s (device=%s)", out, device)
         BDCNRunner.process(inp, out, device=device)
 
 
 class DexiNed(BaseModel):
     def __init__(self, name: str = "DexiNed") -> None:
-        super().__init__(name)
+        super().__init__(name, "models/DexiNed")
 
     def process_folder(self, inp: str, out: str, device: str = CUDA_AVAILABLE) -> None:
-        self._ensure_model_files(Path("models/DexiNed"))
+        self._ensure_model_files()
         _run(
             [
                 sys.executable,
@@ -148,19 +153,23 @@ class PiDiNet(BaseModel):
         super().__init__(name)
 
     def process_folder(self, inp: str, out: str, device: str = CUDA_AVAILABLE) -> None:
-        from pidinet import PiDiNet as PiDi  # type: ignore
+        try:
+            from pidinet import PiDiNet as PiDi  # type: ignore
+        except Exception as exc:  # pragma: no cover - import guard
+            raise FileNotFoundError(
+                "PiDiNet-Modul fehlt. `pip install git+https://github.com/hellozhuo/pidinet.git`"
+            ) from exc
 
-        self._ensure_model_files(Path("models/PiDiNet"))
         LOG.info("PiDiNet → %s  (device=%s)", out, device)
         PiDi.process_folder(inp, out, device=device)
 
 
 class EDTER(BaseModel):
     def __init__(self, name: str = "EDTER") -> None:
-        super().__init__(name)
+        super().__init__(name, "models/EDTER")
 
     def process_folder(self, inp: str, out: str, device: str = CUDA_AVAILABLE) -> None:
-        self._ensure_model_files(Path("models/EDTER"))
+        self._ensure_model_files()
         _run(
             [
                 sys.executable,
@@ -176,10 +185,10 @@ class EDTER(BaseModel):
 
 class UAED(BaseModel):
     def __init__(self, name: str = "UAED") -> None:
-        super().__init__(name)
+        super().__init__(name, "models/UAED_MuGE")
 
     def process_folder(self, inp: str, out: str, device: str = CUDA_AVAILABLE) -> None:
-        self._ensure_model_files(Path("models/UAED_MuGE"))
+        self._ensure_model_files()
         _run(
             [
                 sys.executable,
@@ -195,10 +204,10 @@ class UAED(BaseModel):
 
 class DiffusionEdge(BaseModel):
     def __init__(self, name: str = "DiffusionEdge") -> None:
-        super().__init__(name)
+        super().__init__(name, "models/DiffusionEdge")
 
     def process_folder(self, inp: str, out: str, device: str = CUDA_AVAILABLE) -> None:
-        self._ensure_model_files(Path("models/DiffusionEdge"))
+        self._ensure_model_files()
         _run(
             [
                 sys.executable,
@@ -214,22 +223,22 @@ class DiffusionEdge(BaseModel):
 
 class RankED(BaseModel):
     def __init__(self, name: str = "RankED") -> None:
-        super().__init__(name)
+        super().__init__(name, "models/RankED")
 
     def process_folder(self, inp: str, out: str, device: str = CUDA_AVAILABLE) -> None:
         from models.RankED.inference import RankED as Runner  # type: ignore
 
-        self._ensure_model_files(Path("models/RankED"))
+        self._ensure_model_files()
         LOG.info("RankED → %s", out)
         Runner.batch_infer(inp, out, device=device)
 
 
 class SAUGE(BaseModel):
     def __init__(self, name: str = "SAUGE") -> None:
-        super().__init__(name)
+        super().__init__(name, "models/SAUGE")
 
     def process_folder(self, inp: str, out: str, device: str = CUDA_AVAILABLE) -> None:
-        self._ensure_model_files(Path("models/SAUGE"))
+        self._ensure_model_files()
         _run(
             [
                 sys.executable,
